@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="{{url_for('static',filename='css/bootstrap.min.css')}}"
+      rel="stylesheet"
+    />
+    <link
+      href="{{url_for ('static',filename='fontawesome/css/all.css')}}"
+      rel="stylesheet"
+    />
+    <link
+      href="{{url_for ('static',filename='json-viewer/src/json-viewer.css')}}"
+      rel="stylesheet"
+    />
+
+    <title>Test</title>
+  </head>
+  <body>
+    <div class="container mt-5">
+      <form class="input-group my-3" method="POST" action="#">
+        <input
+          class="form-control"
+          id="url"
+          name="url"
+          placeholder="URL"
+          value="{{ url if url else ''  }}"
+        />
+        <button type="submit" class="btn btn-primary btn-block">fetch</button>
+      </form>
+      {% if data%}
+      <div>
+        <div class="mb-3 input-group">
+          <label class="input-group-text">Format</label>
+          <input type="text" class="form-control" value="{{data.format}}" />
+        </div>
+
+        <div class="my-3">
+          {%if data['format'] == "JSON"%}
+          <div class="input-group">
+            <label for="field_path" class="input-group-text">Path</label>
+            <input
+              type="text"
+              name="field_path"
+              id="field_path"
+              class="form-control"
+              placeholder="Example : data.main.wind"
+            />
+          </div>
+          {%endif%}
+        </div>
+
+        <div>
+          <nav>
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+              <button
+                class="nav-link"
+                id="nav-raw-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#nav-raw"
+                type="button"
+                role="tab"
+                aria-controls="nav-raw"
+                aria-selected="false"
+              >
+                Raw
+              </button>
+              <button
+                class="nav-link active"
+                id="nav-parsed-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#nav-parsed"
+                type="button"
+                role="tab"
+                aria-controls="nav-parsed"
+                aria-selected="true"
+              >
+                Parsed
+              </button>
+            </div>
+          </nav>
+          <div class="tab-content" id="nav-tabContent">
+            <div
+              class="tab-pane fade"
+              id="nav-raw"
+              role="tabpanel"
+              aria-labelledby="nav-raw-tab"
+            >
+              <div class="my-3">
+                <textarea class="form-control" rows="20">
+{{data.text_data}}</textarea
+                >
+              </div>
+            </div>
+            <div
+              class="tab-pane fade show active"
+              id="nav-parsed"
+              role="tabpanel"
+              aria-labelledby="nav-parsed-tab"
+            >
+              <div class="my-3">
+                {%if data['format'] == "JSON"%}
+                <div>
+                  <div
+                    id="showjson"
+                    style="max-height: 500px"
+                    class="border p-2 overflow-auto"
+                  ></div>
+                </div>
+                {% elif data['format'] == "CSV"%}
+                <div>
+                  {% if data['csv_headers'] and data['csv_items']%}
+                  <div
+                    class="border table-responsive"
+                    style="max-height: 500px"
+                  >
+                    <table class="table table-bordered table-hover table-sm">
+                      <thead>
+                        <tr>
+                          {%for header in data['csv_headers']%}
+                          <th scope="col">{{header}}</th>
+                          {%endfor%}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {%for row in data['csv_items'] %}
+                        <tr>
+                          {%for item in row%}
+                          <td>{{item}}</td>
+                          {%endfor%}
+                        </tr>
+                        {%endfor%}
+                      </tbody>
+                    </table>
+                  </div>
+                  {%endif%}
+                </div>
+                {%endif%}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="my-3">
+          {%if data['schema']%} Schema :
+          <div class="table-responsive border" style="max-height: 500px">
+            <table class="mb-0 table table-bordered table-sm">
+              <thead>
+                <tr>
+                  <th scope="col">FIELD</th>
+                  <th scope="col">TYPE</th>
+                  <th scope="col">DESCRIPTION</th>
+                  <th scope="col">PRIMARY KEY</th>
+                  <th scope="col">EXAMPLE DATA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {%for dim in data['schema'] %}
+                <tr>
+                  <td>{{dim["field"]}}</td>
+                  <td>{{dim["type"]}}</td>
+                  <td>
+                    <!-- {{dim["description"]}} -->
+                    <input
+                      type="text"
+                      id="{{dim['field']}}__desc"
+                      name="{{dim['field']}}__desc"
+                      class="form-control"
+                      style="min-width: 150px"
+                    />
+                  </td>
+                  <td class="text-center">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      id="{{dim['field']}}__pk"
+                      name="field_primary"
+                      value="{{dim['field']}}"
+                    />
+                    <!-- {{dim["primary_key"]}} -->
+                  </td>
+                  <td>{{dim["example_data"]}}</td>
+                </tr>
+                {%endfor%}
+              </tbody>
+            </table>
+          </div>
+          {%else%} Nothing {%endif%}
+        </div>
+
+        <div class="my-3">
+          {%if data['schema_json']%} Schema JSON :
+          <div>
+            <div
+              id="show_schema_json"
+              class="border p-2 overflow-auto"
+              style="max-height: 500px"
+            ></div>
+          </div>
+          {%else%} Nothing {%endif%}
+        </div>
+
+        <!-- {{data}} -->
+      </div>
+      {%endif%}
+      <div id="json"></div>
+
+      {%if data %}
+
+      <!-- Data Collection Schedule -->
+      <div class="mb-3">
+        <div class="accordion" id="data_collection_schedule_accordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="head_dsc">
+              <button
+                class="accordion-button"
+                type="button"
+                data-bs-target="#dsc_content"
+                data-bs-toggle="collapse"
+                aria-expanded="true"
+                aria-controls="dsc_content"
+              >
+                Data Collection Schedule
+              </button>
+            </h2>
+            <div
+              id="dsc_content"
+              class="accordion-collapse collapse show"
+              aria-labelledby="head_dsc"
+              data-bs-parent="#data_collection_schedule_accordion"
+            >
+              <div class="accordion-body overflow-auto">
+                <div class="form-check form-switch mb-3">
+                  <label class="form-check-label" for="dsc_status"
+                    >Status</label
+                  >
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="dsc_status"
+                  />
+                </div>
+
+                <div>
+                  <p>Quick Schedule</p>
+                  <div>
+                    <div class="d-flex flex-nowrap">
+                      <button
+                        type="button"
+                        class="btn btn-primary mx-1"
+                        id="dsc_Hourly"
+                      >
+                        Hourly
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-primary mx-1"
+                        id="dsc_Daliy"
+                      >
+                        Daliy
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-primary mx-1"
+                        id="dsc_Weekly"
+                      >
+                        Weekly
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-primary mx-1"
+                        id="dsc_Monthly"
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-primary mx-1"
+                        id="dsc_Yearly"
+                      >
+                        Yearly
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex align-items-end my-3 flex-nowrap">
+                  <div class="mb-3">
+                    <label for="dcs_min" class="form-label">Minute</label>
+                    <input
+                      type="number" style="width : 60px"
+                      class="form-control"
+                      id="dcs_min"
+                      name="dcs_min"
+                    />
+                  </div>
+                  <div class="mb-3 mx-1">
+                    <label for="dcs_min" class="form-label">Hour</label>
+                    <input
+                      type="number" style="width : 60px"
+                      class="form-control"
+                      id="dcs_min"
+                      name="dcs_min"
+                    />
+                  </div>
+                  <div class="mb-3 mx-1">
+                    <label for="dcs_min" class="form-label">Day</label>
+                    <input
+                      type="number" style="width : 60px"
+                      class="form-control"
+                      id="dcs_min"
+                      name="dcs_min"
+                    />
+                  </div>
+                  <div class="mb-3 mx-1">
+                    <label for="dcs_min" class="form-label">Month</label>
+                    <input
+                      type="number" style="width : 60px"
+                      class="form-control"
+                      id="dcs_min"
+                      name="dcs_min"
+                    />
+                  </div>
+                  <div class="mb-3 mx-1">
+                    <label for="dcs_min" class="form-label">Week</label>
+                    <input
+                      type="number" style="width : 60px"
+                      class="form-control"
+                      id="dcs_min"
+                      name="dcs_min"
+                    />
+                  </div>
+                  <div class="mb-3 mx-1">
+                    <button type="button" class="btn btn-primary">Set</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Characteristic -->
+      <div class="mb-3">
+        <div
+          id="data_characteristic_accordion"
+          class="accordion"
+        >
+          <div class="accordion-item">
+             <h2 class="accordion-header" id="head_dcr">
+               <button
+                class="accordion-button"
+                type="button"
+                data-bs-target="#dcr_content"
+                data-bs-toggle="collapse"
+                aria-expanded="true"
+                aria-controls="dcr_content"
+               >
+                Data Characteristic
+               </button>
+
+             </h2>
+             <div
+              id="dcr_content"
+              class="accordion-collapse collapse show"
+              aria-labelledby="head_dcr"
+              data-bs-parent="#data_characteristic_accordion"
+              
+             >
+             <div class="accordion-body overflow-auto">
+                <div  class="d-flex">
+                  <div class="form-check  mb-3 mx-2">
+                    <label class="form-check-label" for="dcr_con_radio"
+                      >Continuous data </label
+                    >
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="dcr_radio"
+                      id="dcr_con_radio"
+                    />
+                  </div>
+
+                  <div class="form-check  mb-3 mx-2">
+                    <label class="form-check-label" for="dcr_com_radio"
+                      >Commulative data </label
+                    >
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="dcr_radio"
+                      id="dcr_com_radio"
+                    />
+                  </div>
+
+                  <div class="form-check  mb-3 mx-2">
+                    <label class="form-check-label" for="dcr_sum_radio"
+                      >Summary data </label
+                    >
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="dcr_radio"
+                      id="dcr_sum_radio"
+                    />
+                  </div>
+                </div>
+             </div>
+
+             </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end mb-5">
+         <button class="btn btn-secondary me-2">Cancel</button>
+         <button class="btn btn-primary">Save & Publish </button>
+
+      </div>
+      {%endif%}
+    </div>
+  </body>
+  <script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
+  <script src="{{url_for('static', filename='json-viewer/src/json-viewer.js')}}"></script>
+
+  <script></script>
+  {%if data['format'] == "JSON"%}
+  <script>
+    let data = JSON.parse({{data.pretty_data | tojson}});
+
+    let myJSON_data = data
+    let maxLvl_data = null
+    let colAt_data = 3
+
+    let jsonViewer_data = new JSONViewer();
+    document.querySelector("#showjson").appendChild(jsonViewer_data.getContainer());
+    jsonViewer_data.showJSON(myJSON_data, maxLvl_data, colAt_data);
+  </script>
+  {%endif%} {% if data['schema_json']%}
+  <script>
+    let schema = {{data.schema_json | tojson}}
+    // const elem2 = document.getElementById("show_schema_json")
+    // elem2.innerHTML  = JSON.stringify({{data.schema_json | tojson}},null,2)
+
+    let myJSON_schema = schema
+    let maxLvl_schema = null
+    let colAt_schema = 3
+
+    let jsonViewer_schema = new JSONViewer();
+    document.querySelector("#show_schema_json").appendChild(jsonViewer_schema.getContainer());
+    jsonViewer_schema.showJSON(myJSON_schema, maxLvl_schema, colAt_schema);
+  </script>
+  {%endif%} {% if data%}
+
+  <script>
+    function createForm(url,path){
+      let form  = document.createElement("form");
+      document.body.appendChild(form)
+      form.method = "POST"
+      form.action = "{{url_for('index_filter')}}"
+
+      let e1 = document.createElement("INPUT")
+      e1.name =  "path_filter"
+      e1.value = path
+      e1.type  ="hidden"
+      form.appendChild(e1)
+
+      let e2 = document.createElement("INPUT")
+      e2.name =  "url"
+      e2.value = "{{url}}"
+      e2.type  ="hidden"
+      form.appendChild(e2)
+
+      let e3 = document.createElement("INPUT")
+      e3.name =  "data"
+      e3.value = JSON.stringify({{data | tojson}})
+      e3.type  ="hidden"
+      form.appendChild(e3)
+      form.submit()
+
+    }
+
+    function filter_path (path){
+      let schema = {{data.schema_json | tojson}}
+      console.log(schema)
+      console.log(path)
+      data = JSON.stringify(data)
+      let  Url =  "{{url_for('index_filter')}}"
+      createForm(Url,path)
+
+    }
+  </script>
+  {%endif%} {% if path_filter %}
+  <script>
+    document.getElementById("field_path").value = "{{path_filter}}";
+  </script>
+  {%endif%}
+
+  <script>
+    const field_path_ele = document.getElementById("field_path");
+    field_path_ele.addEventListener("keyup", (event) => {
+      if (event.key === "Enter") {
+        filter_path(event.target.value);
+      }
+    });
+  </script>
+</html>
