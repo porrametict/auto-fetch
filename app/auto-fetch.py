@@ -25,7 +25,8 @@ SCHEMA_DESCRIPTION_KEY = "descrition"
 DATA_FORMAT_KEY = "format"
 DATA_TEXT_DATA_KEY = "text_data"
 DATA_SCHEMA_KEY = "schema"
-DATA_FULL_SCHEMA_KEY = "full_schema"
+RESPONSE_STATUS_KEY = "response_status"
+URl_KEY = "url"
 
 def tis2utf(tis:str)-> str :
     """
@@ -192,10 +193,13 @@ def get_request(api :str ) -> dict:
         คืนค่า ข้อมูลที่ได้รับจาก url โดยจัดให้อยู่ในรูปแบบของ dict ซึ่งประกอบด้วย HTTP status code,format ของข้อมูล, ลิตต์ของฟิลด์, ข้อมูลในรูปแบบของชุดอักษร
     """
     r = requests.get(api)
+    response_status  = r.status_code
     data = {
+        URl_KEY: api,
+        RESPONSE_STATUS_KEY  : response_status,
         DATA_FORMAT_KEY  :None,
         DATA_SCHEMA_KEY : None,
-        DATA_TEXT_DATA_KEY : None
+        DATA_TEXT_DATA_KEY : None,
     }
     if r.ok : 
         data = parse_data(r,data)
@@ -203,13 +207,139 @@ def get_request(api :str ) -> dict:
         
     return data
 
-def print_data (data :dict) -> NoReturn : 
-    for key in data :
-        print(f"{key} |")
-        print(data[key])
-        print('-'*40)
 
-if __name__ == "__main__" :
-    data = get_request(sys.argv[1])
-    # print_data(data)
-    # print(data)
+##  PATH FILTER ##
+
+def field_path_filter(data :  list,path : str) ->  list :
+    """
+    data  ลิตของฟิลด์ทั้งหมดที่อยู่ในข้แมูล
+    path  path ของฟิลด์ทั่งต้องการให้คืนค่า ในกรณีที่ต้องการให้คืนค่าฟิลด์ ที่อยู่ซ้อนกันให้คั่นด้วยจุด(.)
+    คืนค่า  ลิตของฟิลด์ที่ปรากฏใน path 
+    """
+    if path.strip():
+        path_list = path.split('.')
+        schema = data
+        new_schema = []
+        for column in schema :
+            field = column['field']
+            field_list = field.split('.')
+            check  = all(path in field_list for path in path_list)
+            check_order = field.startswith(path)
+            if check  and check_order:
+                new_schema.append(column)
+        return new_schema
+    else :
+        return  data 
+
+
+def data_path_filter(data : dict,path:str) :
+    """
+    data ข้อมูลทั้งหมด
+    path path ของฟิลด์ทั่งต้องการให้คืนค่า ในกรณีที่ต้องการให้คืนค่าฟิลด์ ที่อยู่ซ้อนกันให้คั่นด้วยจุด(.)
+    คืนค่า dict ของข้อมูลที่อยู่ในผ่านการกรอง
+    """
+    data_pool  = [data]
+    json_data = None
+    if path.strip():
+        path_list = path.split('.')
+        for key_index in range(len(path_list)) :
+            key = path_list[key_index]
+            if type(data_pool[key_index]) is dict :
+                if  key in data_pool[key_index] : 
+
+                    cat_data = data_pool[key_index][key]
+                    data_pool.append(cat_data) 
+                    json_data = cat_data
+            elif  type (data_pool[key_index]) is list :
+                
+                list_data = []
+                for item in data_pool[key_index] :
+                    if key in item :
+                        list_data.append(
+                            item[key]
+                        )
+                data_pool.append(list_data)
+                json_data = list_data
+            else :
+                else_data = data_pool[key_index]
+                data_pool.append(else_data)
+                json_data = else_data
+                      
+        return json_data
+    else :
+        return data 
+
+
+### EASY FUNC ####
+
+import json
+from io import  StringIO
+import urllib.parse
+from typing import  Tuple
+
+
+CHANGE_JSON_SCHEMA = True
+CHANGE_DATA = True
+
+
+def csv_to_list(string_csv: str ) -> Tuple[list,list]:
+    """
+    แปลง CSV ในอยู่ในรูปของ List
+    คืนค่า
+        - ลิตของข้อมูลของแต่ละแถว ยกเว้นบรรทัดแรก
+        - ลิตของข้อมูลของบรรทัดแรก (มองว่าบรรทัดแรกเป็นหัวตารางเสมอ)
+    """
+    text_data = StringIO(string_csv)
+    df = pd.read_csv(text_data)
+    header = list(df.columns)
+    content_list = df.values.tolist()
+    return content_list,header
+
+def get_data_filter(path_filter: str,data:dict)->dict:
+
+    data['schema'] = field_path_filter(data=data['pure_schema'],path=path_filter)
+    if CHANGE_JSON_SCHEMA : 
+        data['schema_json'] = {"schema" : data['schema']}
+    if CHANGE_DATA and data['format'] == "JSON" :
+        json_data = json.loads(data['text_data'])   
+        data['pretty_data'] = json.dumps(data_path_filter(json_data,path_filter))
+    data['path_filter'] = path_filter
+    return data 
+
+def get_data(url : str =None,path_filter: str=None ) -> dict:
+    """
+    คืนค่าข้อมูลที่ถอดได้จาก url 
+    * ข้อมูลเพื่มเติม -> README.md
+    """
+    
+    if(url):
+        url = urllib.parse.unquote(url)
+        url = url.replace(";","&")
+        data =  get_request(url)
+        
+        if data['format'] == "JSON" :
+            data['text_data'] = data['text_data'].replace("\'","\"")
+            data['pretty_data'] = data['text_data']
+        elif data['format'] == "CSV" :
+            data["csv_items"],data["csv_headers"] = csv_to_list(data['text_data'])
+        data['schema_json'] = {"schema" : data['schema']}
+        data['pure_schema'] = data['schema']
+
+        # data['path_filter'] = path_filter
+        # if path_filter and data['pure_schema'] :
+        #     data = get_data_filter(path_filter,data)
+
+        data['path_filter'] = path_filter
+        
+
+        return  data
+    else :
+        return {}
+
+
+
+
+if __name__ == '__main__' :
+    url = sys.argv[1]
+    path_filter = None
+    data = get_data(url=url,path_filter=path_filter)

@@ -20,35 +20,46 @@
   </head>
   <body>
     <div class="container mt-5">
-      <form class="input-group my-3" method="POST" action="#">
+
+      <form class="input-group my-3" method="POST" action="">
         <input
           class="form-control"
           id="url"
           name="url"
+          type="url"
           placeholder="URL"
-          value="{{ url if url else ''  }}"
+          value="{{ data['url'] }}"
         />
+        <input type="hidden" name="method" value="get_request" />
         <button type="submit" class="btn btn-primary btn-block">fetch</button>
       </form>
+
       {% if data%}
       <div>
         <div class="mb-3 input-group">
           <label class="input-group-text">Format</label>
           <input type="text" class="form-control" value="{{data.format}}" />
-        </div>
+        </div> 
 
         <div class="my-3">
           {%if data['format'] == "JSON"%}
-          <div class="input-group">
-            <label for="field_path" class="input-group-text">Path</label>
-            <input
-              type="text"
-              name="field_path"
-              id="field_path"
-              class="form-control"
-              placeholder="Example : data.main.wind"
-            />
-          </div>
+
+          <form  method="POST" action="">
+            <input type="hidden" name="url" value="{{ data['url'] }}" />
+            <input type="hidden" name="method" value="path_filter" />
+            <div class="input-group">
+              <label for="field_path" class="input-group-text">Path</label>
+              <input
+                type="text"
+                name="path_filter"
+                id="field_path"
+                class="form-control"
+                placeholder="Example : data.main.wind"
+                value="{{data['path_filter']}}"
+              />
+            </div>
+          </form>
+         
           {%endif%}
         </div>
 
@@ -191,7 +202,7 @@
         </div>
 
         <div class="my-3">
-          {%if data['schema_json']%} Schema JSON :
+          {%if data['schema']%} Schema JSON :
           <div>
             <div
               id="show_schema_json"
@@ -429,7 +440,7 @@
   <script></script>
   {%if data['format'] == "JSON"%}
   <script>
-    let data = JSON.parse({{data.pretty_data | tojson}});
+    let data = JSON.parse({{data.text_data | tojson}});
 
     let myJSON_data = data
     let maxLvl_data = null
@@ -439,11 +450,11 @@
     document.querySelector("#showjson").appendChild(jsonViewer_data.getContainer());
     jsonViewer_data.showJSON(myJSON_data, maxLvl_data, colAt_data);
   </script>
-  {%endif%} {% if data['schema_json']%}
+  {%endif%} 
+
+  {% if data['schema']%}
   <script>
-    let schema = {{data.schema_json | tojson}}
-    // const elem2 = document.getElementById("show_schema_json")
-    // elem2.innerHTML  = JSON.stringify({{data.schema_json | tojson}},null,2)
+    let schema = {{data.schema | tojson}}
 
     let myJSON_schema = schema
     let maxLvl_schema = null
@@ -453,58 +464,6 @@
     document.querySelector("#show_schema_json").appendChild(jsonViewer_schema.getContainer());
     jsonViewer_schema.showJSON(myJSON_schema, maxLvl_schema, colAt_schema);
   </script>
-  {%endif%} {% if data%}
-
-  <script>
-    function createForm(url,path){
-      let form  = document.createElement("form");
-      document.body.appendChild(form)
-      form.method = "POST"
-      form.action = "{{url_for('index_filter')}}"
-
-      let e1 = document.createElement("INPUT")
-      e1.name =  "path_filter"
-      e1.value = path
-      e1.type  ="hidden"
-      form.appendChild(e1)
-
-      let e2 = document.createElement("INPUT")
-      e2.name =  "url"
-      e2.value = "{{url}}"
-      e2.type  ="hidden"
-      form.appendChild(e2)
-
-      let e3 = document.createElement("INPUT")
-      e3.name =  "data"
-      e3.value = JSON.stringify({{data | tojson}})
-      e3.type  ="hidden"
-      form.appendChild(e3)
-      form.submit()
-
-    }
-
-    function filter_path (path){
-      let schema = {{data.schema_json | tojson}}
-      console.log(schema)
-      console.log(path)
-      data = JSON.stringify(data)
-      let  Url =  "{{url_for('index_filter')}}"
-      createForm(Url,path)
-
-    }
-  </script>
-  {%endif%} {% if path_filter %}
-  <script>
-    document.getElementById("field_path").value = "{{path_filter}}";
-  </script>
-  {%endif%}
-
-  <script>
-    const field_path_ele = document.getElementById("field_path");
-    field_path_ele.addEventListener("keyup", (event) => {
-      if (event.key === "Enter") {
-        filter_path(event.target.value);
-      }
-    });
-  </script>
+  {%endif%} 
+  
 </html>

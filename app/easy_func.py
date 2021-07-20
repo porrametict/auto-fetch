@@ -12,18 +12,6 @@ CHANGE_JSON_SCHEMA = True
 CHANGE_DATA = True
 
 
-def csv_to_list(string_csv: str ) -> Tuple[list,list]:
-    """
-    แปลง CSV ในอยู่ในรูปของ List
-    คืนค่า
-        - ลิตของข้อมูลของแต่ละแถว ยกเว้นบรรทัดแรก
-        - ลิตของข้อมูลของบรรทัดแรก (มองว่าบรรทัดแรกเป็นหัวตารางเสมอ)
-    """
-    text_data = StringIO(string_csv)
-    df = pd.read_csv(text_data)
-    header = list(df.columns)
-    content_list = df.values.tolist()
-    return content_list,header
 
 
 def get_data(url : str =None,path_filter: str=None ) -> dict:

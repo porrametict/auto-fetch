@@ -1,35 +1,41 @@
-from codecs import encode
-from flask import Flask,render_template,request,redirect
-from flask.helpers import url_for
-# from .test import get_request, parse_alien_language
-from .path_filter  import field_path_filter,data_path_filter
-# from .test2 import get_request
+from flask import Flask, render_template, request
+from .fetch_data.request_data import get_request
+from.fetch_data.path_filter import data_path_filter, field_path_filter
 import json
-from io import  StringIO
-import pandas as pd 
-import csv
-import urllib.parse
-from .easy_func import get_data
-
 app = Flask(__name__)
 
-@app.route('/')
+
+@app.route('/', methods=['GET'])
 def index():
-    url = request.args.get('url',None)
-    path_filter = request.args.get('path_filter',None)
+    data = {
+        'url': None,
+        "path_filter": None
+    }
+    return render_template('index.html', data=data)
 
-    data = get_data(url=url,path_filter=path_filter)
-    return render_template('index.html',data=data,url=url,path_filter=path_filter)
 
-@app.route('/',methods=['POST'])
-def index_post () :
-    url = request.form.get('url')
-    return redirect(url_for('index',url=url))
+@app.route('/', methods=['POST'])
+def index_post():
+    data = {
+        'url': None,
+        "path_filter": None
+    }
 
-@app.route("/filter",methods=['POST'])
-def index_filter():
     url = request.form.get('url')
     path_filter = request.form.get('path_filter')
-    
 
-    return redirect(url_for('index',url=url,path_filter=path_filter))
+
+    method = request.form.get('method')
+    if method == 'get_request' : 
+        data = get_request(url)
+    elif method == 'path_filter':
+        data = get_request(url)
+        full_json_data = data['parsed_data']
+        full_schema = data['schema']
+        schema = field_path_filter(full_schema,path_filter)
+        json_data = data_path_filter(full_json_data,path_filter)
+        data['schema'] = schema
+        data['text_data'] = json.dumps(json_data)
+        data['path_filter'] =  path_filter
+    
+    return render_template('index.html', data=data)
